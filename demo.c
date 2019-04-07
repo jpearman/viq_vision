@@ -9,6 +9,8 @@
 
 visionObject     obj[VISION_MAX_OBJECTS];
 
+#define SIG_1     1
+
 task main()
 {
     portName    port;
@@ -22,7 +24,8 @@ task main()
       displayString( 0, "Using Port %d", port+1 );
 
       while(1) {
-        int nObjects = visionObjectGet( port, 1, obj, 4 );
+        // request objects matching signature 1
+        int nObjects = visionObjectGet( port, SIG_1, obj, VISION_MAX_OBJECTS );
 
         if( nObjects > 0 ) {
           writeDebugStreamLine("found %d", nObjects );
