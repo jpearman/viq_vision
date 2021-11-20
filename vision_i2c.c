@@ -43,6 +43,8 @@
 #ifndef __VISION_I2C__
 #define __VISION_I2C__
 
+#pragma systemFile
+
 #define   vexIQ_SensorVision        0x0B
 
 #define   VISION_ID_REG             0x24
@@ -50,6 +52,17 @@
 #define   VISION_SIGNATURE_REG      0xAF
 #define   VISION_MAX_OBJECTS        4
 #define   VISION_OBJECTS_DATA_SIZE  6
+
+#define   VISION_BRIGHTNESS_REG     0xE2
+#define   VISION_WB_MODE_REG        0xE3
+#define   VISION_WB_RED_REG         0xE4
+#define   VISION_WB_GREEN_REG       0xE5
+#define   VISION_WB_BLUE_REG        0xE6
+#define   VISION_LED_BRIGHTNESS_REG 0xE7
+#define   VISION_LED_RED_REG        0xE8
+#define   VISION_LED_GREEN_REG      0xE9
+#define   VISION_LED_BLUE_REG       0xEA
+#define   VISION_LED_MODE_REG       0xEB
 
 typedef struct _visionObject {
     short   id;
@@ -73,6 +86,27 @@ typedef struct _visionSignatue {
     long    mRgb;
     long    mType;
 } visionSignature;
+
+// Color structure, used for led and white balance
+typedef struct _visionRgb {
+    unsigned char red;
+    unsigned char green;
+    unsigned char blue;
+    unsigned char brightness;
+} visionRgb;
+
+// White balance
+typedef enum _visionWbMode {
+    kVisionWBNormal       = 0,
+    kVisionWBStart        = 1,
+    kVisionWBManual       = 2
+} visionWbMode_t;
+
+// LED modes
+typedef enum _visionLedMode {
+    kVisionLedModeAuto    = 0,
+    kVisionLedModeManual  = 1
+} visionLedMode;
 
 /*-----------------------------------------------------------------------------*/
 /** @brief  Read objects from the vision sensor                                */
@@ -226,6 +260,129 @@ visionSignatureGet( portName port, visionSignature *pSig ) {
     pSig->mType = bufToLong( &buffer[32] );
 
     return(sizeof(visionSignature));
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Set the vision sensor brightness (sensor gain)                    */
+/*-----------------------------------------------------------------------------*/
+void
+visionBrightnessSet( portName port, unsigned char percent ) {
+    genericI2cWrite( port, VISION_BRIGHTNESS_REG, &percent, 1 );
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Get the vision sensor brightness (sensor gain)                    */
+/*-----------------------------------------------------------------------------*/
+unsigned char
+visionBrightnessGet( portName port ) {
+    unsigned char data;
+
+    genericI2cRead( port, VISION_BRIGHTNESS_REG, &data, 1 );
+
+    return( data );
+}
+/*-----------------------------------------------------------------------------*/
+/** @brief   Set the White balance Mode                                        */
+/*-----------------------------------------------------------------------------*/
+void
+visionWhiteBalanceModeSet( portName port, visionWbMode_t mode ) {
+    unsigned char data = (unsigned char)mode;
+
+    genericI2cWrite( port, VISION_WB_MODE_REG, &data, 1 );
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Get the White balance Mode                                        */
+/*-----------------------------------------------------------------------------*/
+visionWbMode_t
+visionWhiteBalanceModeGet( portName port ) {
+    unsigned char data;
+
+    genericI2cRead( port, VISION_BRIGHTNESS_REG, &data, 1 );
+
+    return( (visionWbMode_t)data );
+}
+/*-----------------------------------------------------------------------------*/
+/** @brief   Set the White balance (only when in manual)                       */
+/*-----------------------------------------------------------------------------*/
+void
+visionWhiteBalanceSet( portName port, visionRgb color ) {
+    unsigned char data[4];
+
+    data[0]  = kVisionWBManual;
+    data[1]  = color.red;
+    data[2]  = color.green;
+    data[3]  = color.blue;
+
+    genericI2cWrite( port, VISION_WB_MODE_REG, data, 4 );
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Get the White balance                                             */
+/*-----------------------------------------------------------------------------*/
+void
+visionWhiteBalanceGet( portName port, visionRgb &color ) {
+    unsigned char data[3];
+
+    genericI2cRead( port, VISION_WB_RED_REG, data, 3 );
+
+    color.red        = data[0];
+    color.green      = data[1];
+    color.blue       = data[2];
+    color.brightness = 0;
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Set the LED mode                                                  */
+/*-----------------------------------------------------------------------------*/
+void
+visionLedModeSet( portName port, visionLedMode mode ) {
+    unsigned char data = (unsigned char)mode;
+
+    genericI2cWrite( port, VISION_LED_MODE_REG, &data, 1 );
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Get the LED mode                                                  */
+/*-----------------------------------------------------------------------------*/
+visionLedMode
+visionLedModeGet( portName port ) {
+    unsigned char data;
+
+    genericI2cRead( port, VISION_LED_MODE_REG, &data, 1 );
+
+    return( (visionLedMode)data );
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Set the LED color (LED mode must be manual)                       */
+/*-----------------------------------------------------------------------------*/
+void
+visionLedColorSet( portName port, visionRgb &color) {
+    unsigned char data[5];
+
+    data[0]  = (color.brightness <= 100 ) ? color.brightness : 100;
+    data[1]  = color.red;
+    data[2]  = color.green;
+    data[3]  = color.blue;
+    data[4]  = kVisionLedModeManual;
+
+    genericI2cWrite( port, VISION_LED_BRIGHTNESS_REG, data, 5 );
+}
+
+/*-----------------------------------------------------------------------------*/
+/** @brief   Get the LED color (only when manually set)                        */
+/*-----------------------------------------------------------------------------*/
+void
+visionLedColorGet( portName port, visionRgb &color ) {
+    unsigned char data[4];
+
+    genericI2cRead( port, VISION_LED_BRIGHTNESS_REG, data, 4 );
+
+    color.brightness = data[0];
+    color.red        = data[1];
+    color.green      = data[2];
+    color.blue       = data[3];
 }
 
 /*-----------------------------------------------------------------------------*/
